@@ -1,0 +1,11 @@
+rm mrtmp.824-mrinput.txt-0*
+rm mrtmp.824-mrinput.txt-1*
+rm mrtmp.824-mrinput.txt-2*
+rm mrtmp.824-mrinput.txt-3*
+rm mrtmp.824-mrinput.txt-4*
+rm mrtmp.824-mrinput.txt-5*
+rm mrtmp.824-mrinput.txt-6*
+rm mrtmp.824-mrinput.txt-7*
+rm mrtmp.824-mrinput.txt-8*
+rm mrtmp.824-mrinput.txt-9*
+rm mrtmp.824-mrinput.txt-res-*
