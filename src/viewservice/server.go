@@ -9,6 +9,8 @@ import "fmt"
 import "os"
 import "sync/atomic"
 
+import "strings"
+
 type ViewServer struct {
 	mu       sync.Mutex
 	l        net.Listener
@@ -18,15 +20,64 @@ type ViewServer struct {
 
 
 	// Your declarations here.
+    curView  View
+    newView  View
+    recentTime map[string]time.Time // most recent time receive ping
+    state    bool // the primary server acknowledge the view or not
+}
+
+func initView(view *View) {
+    view.Viewnum = 0
+    view.Primary = ""
+    view.Backup = ""
 }
 
 //
 // server Ping RPC handler.
 //
 func (vs *ViewServer) Ping(args *PingArgs, reply *PingReply) error {
-
 	// Your code here.
+    vs.mu.Lock()
 
+    // no primary server
+    if strings.Compare(vs.curView.Primary, "") == 0 {
+        vs.newView.Primary = args.Me
+        vs.newView.Viewnum = vs.oldView.Viewnum + 1
+        vs.state = false
+
+        reply.View = vs.newView
+        vs.recentTime[args.Me] = time.Now()
+        vs.mu.Unlock()
+        return nil
+    }
+
+    // no backup server
+    if strings.Compare(vs.curView.Backup, "") == 0 {
+        vs.newView.Backup = args.me
+        vs.newView.Viewnum = vs.oldView.Viewnum + 1
+
+        reply.View = vs.curView
+
+        vs.recentTime[args.Me] = time.Now()
+        vs.mu.Unlock()
+        return nil
+    }
+
+    // primary server acknowledge
+    if strings.Compare(vs.newView.primary, args.Me) == 0 && vs.stat == false {
+        vs.curView = vs.newView
+        initView(&vs.newView)
+        vs.stat = true
+        reply.View = curView
+        vs.recentTime[args.Me] = time.Now()
+        vs.mu.Unlock()
+        return nil
+    }
+
+    // other situation
+    vs.recentTime[args.Me] = time.Now()
+    reply.View = vs.curView
+    vs.mu.Unlock()
 	return nil
 }
 
@@ -34,8 +85,10 @@ func (vs *ViewServer) Ping(args *PingArgs, reply *PingReply) error {
 // server Get() RPC handler.
 //
 func (vs *ViewServer) Get(args *GetArgs, reply *GetReply) error {
-
 	// Your code here.
+    vs.mu.Lock()
+    reply.curView
+    vs.mu.Unlock()
 
 	return nil
 }
@@ -77,6 +130,10 @@ func StartServer(me string) *ViewServer {
 	vs := new(ViewServer)
 	vs.me = me
 	// Your vs.* initializations here.
+    initView(&vs.curView)
+    initView(&vs.newView)
+    vs.recentTime = make(map[string]time.Time)
+    vs.state = false
 
 	// tell net/rpc about our RPC server and handlers.
 	rpcs := rpc.NewServer()
