@@ -111,7 +111,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
     args := &PutAppendArgs{key, value, ck.me, op, opid}
     for {
         if ck.view.Primary == ""{
-             ck.view, _ = ck.vs.Get()
+            ck.view, _ = ck.vs.Get()
         }
         ok := call(ck.view.Primary, "PBServer.PutAppend", args, &reply)
         if ok {
@@ -121,6 +121,9 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
             } else {
                  break
             }
+        } else {
+            time.Sleep(viewservice.PingInterval)
+            ck.view, _ = ck.vs.Get()
         }
     }
 }

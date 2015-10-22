@@ -83,6 +83,12 @@ func (pb *PBServer) forwardToBackup(args *PutAppendArgs) {
         ok := call(pb.view.Backup, "PBServer.PutAppend", args, &reply)
         if ok && reply.Err == OK {
             break;
+        } else {
+            time.Sleep(viewservice.PingInterval)
+            pb.view, _ = pb.vs.Get()
+            if pb.view.Backup == "" {
+                break
+            }
         }
     }
 }
