@@ -6,13 +6,21 @@ const (
 	ErrWrongServer = "ErrWrongServer"
 )
 
+const (
+    Put            = "Put"
+    Append         = "Append"
+)
+
 type Err string
 
 // Put or Append
 type PutAppendArgs struct {
-	Key   string
-	Value string
+	Key    string
+	Value  string
 	// You'll have to add definitions here.
+    Client string
+    Op     string
+    Opid   int64
 
 	// Field names must start with capital letters,
 	// otherwise RPC will break.
@@ -34,3 +42,10 @@ type GetReply struct {
 
 
 // Your RPC definitions here.
+type SynArgs struct {
+    Data map[string]string
+}
+
+type SynReply struct {
+    Err Err
+}

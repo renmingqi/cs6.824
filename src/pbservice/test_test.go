@@ -48,6 +48,8 @@ func TestBasicFail(t *testing.T) {
 
 	s1 := StartServer(vshost, port(tag, 1))
 
+    fmt.Println("StartServer")
+
 	deadtime := viewservice.PingInterval * viewservice.DeadPings
 	time.Sleep(deadtime * 2)
 	if vck.Primary() != s1.me {
