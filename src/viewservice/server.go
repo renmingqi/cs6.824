@@ -53,7 +53,7 @@ func (vs *ViewServer) IsBackup(server string) bool {
 
 // view acked by primary or not
 func (vs *ViewServer) Acked() bool {
-    return vs.view.Viewnum == vs.primaryAck
+    return  vs.view.Viewnum != 0 && vs.view.Viewnum == vs.primaryAck
 }
 
 // promote backup to primary
@@ -131,13 +131,14 @@ func (vs *ViewServer) tick() {
     // Check primary server
     vs.mu.Lock()
     vs.currentTick++
-    if vs.Acked() && vs.currentTick - vs.primaryTick >= DeadPings {
-        vs.PromoteBackup()
-    }
 
     if vs.Acked() && vs.HasBackup() && vs.currentTick - vs.backupTick >= DeadPings {
         vs.view.Backup = ""
         vs.view.Viewnum++
+    }
+
+    if vs.Acked() && vs.currentTick - vs.primaryTick >= DeadPings {
+        vs.PromoteBackup()
     }
 
     vs.mu.Unlock()

@@ -167,6 +167,9 @@ func Test1(t *testing.T) {
 		for i := 0; i < DeadPings*3; i++ {
 			vx, _ := ck3.Get()
 			ck3.Ping(vx.Viewnum)
+            if i < 1 {
+                ck1.Ping(vx.Viewnum)
+            }
 			time.Sleep(PingInterval)
 		}
 		v, _ := ck3.Get()
