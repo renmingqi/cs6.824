@@ -81,23 +81,15 @@ func (ck *Clerk) Get(key string) string {
     var reply GetReply
     args := &GetArgs{key}
     for {
-        if ck.view.Primary == "" {
-            ck.view, _ = ck.vs.Get()
-        }
         ok := call(ck.view.Primary, "PBServer.Get", args, &reply)
         if ok {
             switch {
-            case reply.Err == OK:
+            case reply.Err == OK || reply.Err == ErrNoKey:
                 return reply.Value
-            case reply.Err == ErrNoKey:
-                return ""
-            case reply.Err == ErrWrongServer:
-                time.Sleep(viewservice.PingInterval)
-                ck.view, _ = ck.vs.Get()
             }
-        } else{
-            ck.view, _ = ck.vs.Get()
         }
+        time.Sleep(viewservice.PingInterval * 2)
+        ck.view, _ = ck.vs.Get()
     }
 }
 
@@ -110,21 +102,12 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
     opid := nrand()
     args := &PutAppendArgs{key, value, ck.me, op, opid}
     for {
-        if ck.view.Primary == ""{
-            ck.view, _ = ck.vs.Get()
-        }
         ok := call(ck.view.Primary, "PBServer.PutAppend", args, &reply)
-        if ok {
-            if reply.Err == ErrWrongServer {
-                time.Sleep(viewservice.PingInterval)
-                ck.view, _ = ck.vs.Get()
-            } else {
-                 break
-            }
-        } else {
-            time.Sleep(viewservice.PingInterval)
-            ck.view, _ = ck.vs.Get()
+        if ok && reply.Err != ErrWrongServer {
+            break
         }
+        time.Sleep(viewservice.PingInterval * 2)
+        ck.view, _ = ck.vs.Get()
     }
 }
 

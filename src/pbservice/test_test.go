@@ -273,6 +273,7 @@ func TestFailPut(t *testing.T) {
 	s2.kill()
 	ck.Put("a", "aaa")
 	check(ck, "a", "aaa")
+    fmt.Println("put")
 
 	for i := 0; i < viewservice.DeadPings*3; i++ {
 		v, _ := vck.Get()
@@ -431,6 +432,7 @@ func checkAppends(t *testing.T, v string, counts []int) {
 			off1 := strings.LastIndex(v, wanted)
 			if off1 != off {
 				t.Fatalf("duplicate element in Append result")
+                fmt.Println(wanted)
 			}
 			if off <= lastoff {
 				t.Fatalf("wrong order for element in Append result")
@@ -511,6 +513,7 @@ func TestConcurrentSameAppend(t *testing.T) {
 	// the Append()s.
 	primaryv := ck.Get("k")
 	checkAppends(t, primaryv, counts)
+    fmt.Println("Primary")
 
 	// kill the primary so we can check the backup
 	for i := 0; i < nservers; i++ {
@@ -535,6 +538,7 @@ func TestConcurrentSameAppend(t *testing.T) {
 	// the Append()s.
 	backupv := ck.Get("k")
 	checkAppends(t, backupv, counts)
+    fmt.Println("Backup")
 
 	if backupv != primaryv {
 		t.Fatal("primary and backup had different values")
@@ -702,6 +706,7 @@ func TestRepeatedCrash(t *testing.T) {
 		for atomic.LoadInt32(&done) == 0 {
 			i := rr.Int() % nservers
 			// fmt.Printf("%v killing %v\n", ts(), 5001+i)
+            fmt.Println("Kill ", i)
 			sa[i].kill()
 
 			// wait long enough for new view to form, backup to be initialized

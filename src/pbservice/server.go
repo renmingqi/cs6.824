@@ -32,6 +32,7 @@ type PBServer struct {
 func (pb *PBServer) Get(args *GetArgs, reply *GetReply) error {
 	// Your code here.
     pb.mu.Lock()
+    defer pb.mu.Unlock()
     if pb.view.Primary != pb.me {
         reply.Err = ErrWrongServer
         reply.Value = ""
@@ -45,7 +46,6 @@ func (pb *PBServer) Get(args *GetArgs, reply *GetReply) error {
             reply.Value = ""
         }
     }
-    pb.mu.Unlock()
 	return nil
 }
 
@@ -53,8 +53,7 @@ func (pb *PBServer) Get(args *GetArgs, reply *GetReply) error {
 func (pb *PBServer) doPutOperation(args *PutAppendArgs, reply *PutAppendReply) {
     switch {
     case args.Op == Put:
-        pb.data[args.Key] = args.Value
-        pb.opid[args.Key] = args.Opid
+        pb.data[args.Key] = args.Value // Put operation do not record opid
         reply.Err = OK
     case args.Op == Append:
         _, exist := pb.data[args.Key]
@@ -62,6 +61,8 @@ func (pb *PBServer) doPutOperation(args *PutAppendArgs, reply *PutAppendReply) {
             if pb.opid[args.Key] != args.Opid {
                 pb.data[args.Key] += args.Value
                 pb.opid[args.Key] = args.Opid
+            } else {
+                fmt.Println("DUPLICATED")
             }
             reply.Err = OK
         } else {
@@ -80,16 +81,15 @@ func (pb *PBServer) forwardToBackup(args *PutAppendArgs) {
     args.Client = pb.me
     var reply PutAppendReply
     for {
-        ok := call(pb.view.Backup, "PBServer.PutAppend", args, &reply)
-        if ok && reply.Err == OK {
-            break;
-        } else {
-            time.Sleep(viewservice.PingInterval)
-            pb.view, _ = pb.vs.Get()
-            if pb.view.Backup == "" {
-                break
-            }
+        if pb.view.Backup == "" {
+            break
         }
+        ok := call(pb.view.Backup, "PBServer.PutAppend", args, &reply)
+        if ok {
+            break;
+        }
+        time.Sleep(viewservice.PingInterval)
+        pb.view, _ = pb.vs.Get()
     }
 }
 
@@ -97,23 +97,25 @@ func (pb *PBServer) forwardToBackup(args *PutAppendArgs) {
 func (pb *PBServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) error {
 	// Your code here.
     pb.mu.Lock()
+    defer pb.mu.Unlock()
     if pb.view.Primary == pb.me {
         pb.doPutOperation(args, reply)
         pb.forwardToBackup(args)
+    } else if args.Client == pb.view.Primary {
+        pb.doPutOperation(args, reply)
     } else {
-        if args.Client == pb.view.Primary {
-            pb.doPutOperation(args, reply)
-        }
+        reply.Err = ErrWrongServer
     }
-    pb.mu.Unlock()
 	return nil
 }
 
 func (pb *PBServer) SynData(args *SynArgs, reply *SynReply) error {
     pb.mu.Lock()
-    pb.data = args.Data
+    defer pb.mu.Unlock()
+    for key, value := range args.Data {
+         pb.data[key] = value
+    }
     reply.Err = OK
-    pb.mu.Unlock()
     return nil
 }
 
@@ -122,10 +124,16 @@ func (pb *PBServer) synPrimaryToBackup(backup string) {
     Args := &SynArgs{pb.data}
     var reply SynReply
     for {
+        if backup == "" {
+            break
+        }
         ok := call(backup, "PBServer.SynData", Args, &reply)
         if ok {
             break
         }
+        time.Sleep(viewservice.PingInterval)
+        view, _ := pb.vs.Get()
+        backup = view.Backup
     }
 }
 
@@ -139,15 +147,16 @@ func (pb *PBServer) synPrimaryToBackup(backup string) {
 func (pb *PBServer) tick() {
 	// Your code here.
     pb.mu.Lock()
-    if view, err := pb.vs.Ping(pb.view.Viewnum); err == nil {
-        if view.Primary == pb.me && view.Backup != "" && pb.view.Backup == "" {
+    defer pb.mu.Unlock()
+    curview, _:= pb.vs.Get()
+    if view, err := pb.vs.Ping(curview.Viewnum); err == nil {
+        if view.Primary == pb.me && view.Backup != "" && pb.view.Backup != view.Backup {
             pb.synPrimaryToBackup(view.Backup)
         }
         pb.view = view
     } else {
         pb.view = viewservice.View{}
     }
-    pb.mu.Unlock()
 }
 
 // tell the server to shut itself down.
